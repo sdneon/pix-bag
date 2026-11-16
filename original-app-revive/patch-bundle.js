@@ -44,6 +44,12 @@ const patches = [
     from: "l={loading:0===o.images.length&&0===o.cartoons.length&&n,message:'Loading store...'}",
     to: "l={loading:!1,message:'Loading store...'}",
   },
+  {
+    // Firmware files came from the dead server: no update check, prompt flow or flashing.
+    name: 'firmware update disabled',
+    from: 'var L=[(0,s.takeLatest)(v.default.SYNC_FIRMWARE,F),(0,s.takeLatest)(v.default.START_FIRMWARE_UPDATE_FLOW,A),(0,s.takeLeading)(v.default.UPDATE_FIRMWARE,(0,p.withBackpack)((0,f.default)(_)))];e.default=L},1224,',
+    to: 'var L=[];e.default=L},1224,',
+  },
 ];
 
 let src = fs.readFileSync(inPath, 'utf8');
