@@ -3,7 +3,9 @@ import { BackHandler, SafeAreaView, StatusBar, StyleSheet, View } from 'react-na
 import { DeviceListScreen } from './screens/DeviceListScreen';
 import { ControlScreen, NavigateTo } from './screens/ControlScreen';
 import { BikeScreen } from './screens/BikeScreen';
-import { PixelBreakerScreen } from './screens/PixelBreakerScreen';
+import { GameScreen } from './screens/GameScreen';
+import { StopwatchScreen } from './screens/StopwatchScreen';
+import { BingoScreen } from './screens/BingoScreen';
 import { AnimationEditorScreen, EditorSource } from './screens/AnimationEditorScreen';
 import { GalleryScreen } from './screens/GalleryScreen';
 import { ScrollingTextScreen } from './screens/ScrollingTextScreen';
@@ -114,7 +116,11 @@ export default function App() {
     if (!device) return null;
     switch (route.name) {
       case 'bike': return <BikeScreen device={device} onBack={pop} />;
-      case 'pixel-breaker': return <PixelBreakerScreen device={device} onBack={pop} />;
+      case 'pix-blocks':
+      case 'crawler':
+      case 'pixel-breaker': return <GameScreen device={device} game={route.name} onBack={pop} />;
+      case 'stopwatch': return <StopwatchScreen device={device} onBack={pop} />;
+      case 'bingo': return <BingoScreen device={device} onBack={pop} />;
       case 'scrolling-text': return <ScrollingTextScreen device={device} onBack={pop} />;
       case 'dice': return <DiceScreen device={device} onBack={pop} />;
       case 'countdown': return <CountdownScreen device={device} onBack={pop} />;

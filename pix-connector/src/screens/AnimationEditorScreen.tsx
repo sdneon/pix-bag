@@ -4,6 +4,8 @@ import React, {
 import {
   Alert,
   BackHandler,
+  Image,
+  Keyboard,
   Modal,
   PanResponder,
   ScrollView,
@@ -21,6 +23,11 @@ import { BUILTIN_ANIMATIONS } from '../data/builtinAnimations';
 import * as ops from '../editor/ops';
 import { PixelGrid, PixelImage } from '../ui/PixelImage';
 import { ColorEditor } from '../ui/ColorEditor';
+import { EffectsSheet } from '../ui/EffectsSheet';
+import { EffectsGrid } from '../ui/EffectsGrid';
+import { IconBtn } from '../ui/IconBtn';
+import { IconName, iconUri } from '../ui/pixelIcons';
+import type { EffectKind } from '../editor/effects';
 import { Slider } from '../ui/Slider';
 import { Btn, C } from '../ui/Btn';
 
@@ -40,13 +47,21 @@ interface Props {
 
 type Tool = 'pen' | 'eraser' | 'line' | 'rect' | 'fill' | 'pick';
 const TOOLS: { key: Tool; label: string }[] = [
-  { key: 'pen', label: '✎ Pen' },
-  { key: 'eraser', label: '⌫ Erase' },
-  { key: 'line', label: '╱ Line' },
-  { key: 'rect', label: '▭ Rect' },
-  { key: 'fill', label: '◪ Fill' },
-  { key: 'pick', label: '⊙ Pick' },
+  { key: 'pen', label: 'Pen' },
+  { key: 'eraser', label: 'Eraser' },
+  { key: 'line', label: 'Line' },
+  { key: 'rect', label: 'Rectangle' },
+  { key: 'fill', label: 'Fill' },
+  { key: 'pick', label: 'Pick colour' },
 ];
+
+type Tab = 'frames' | 'move' | 'effects';
+const TABS: { key: Tab; label: string; icon: IconName }[] = [
+  { key: 'frames', label: 'Frames', icon: 'dup' },
+  { key: 'move', label: 'Move', icon: 'right' },
+  { key: 'effects', label: 'Effects', icon: 'effects' },
+];
+const TRAY_H = 190;
 
 // Frame clipboard shared across editor instances (copy in one animation, paste in another).
 let clipboard: { w: number; h: number; pixels: number[]; palette: string[] } | null = null;
@@ -79,8 +94,10 @@ export function AnimationEditorScreen({ source, device, deviceSize, active, onBa
   const [status, setStatus] = useState('');
   const [editColor, setEditColor] = useState<number | null>(null);
   const [showDuration, setShowDuration] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
+  const [tab, setTab] = useState<Tab>('frames');
+  const [fxKind, setFxKind] = useState<EffectKind>('scrollText');
   const [showPreview, setShowPreview] = useState(false);
+  const [showFx, setShowFx] = useState(false);
   const [, setHistVer] = useState(0);
 
   const animRef = useRef(anim);
@@ -334,6 +351,20 @@ export function AnimationEditorScreen({ source, device, deviceSize, active, onBa
     setSel(to);
   };
 
+  // Generated effect frames go right after the selected frame.
+  const insertFrames = (added: ops.Frame[], ms: number, palette?: string[]) => {
+    if (!added.length) return;
+    commit(a => {
+      const frames = [...a.frames];
+      const durations = [...a.durations];
+      frames.splice(sel + 1, 0, ...added);
+      durations.splice(sel + 1, 0, ...added.map(() => ms));
+      return { ...a, frames, durations, palette: palette ?? a.palette };
+    });
+    setSel(sel + 1);
+    setStatus(`Added ${added.length} frame${added.length === 1 ? '' : 's'}.`);
+  };
+
   const copyFrame = () => {
     clipboard = { w: anim.width, h: anim.height, pixels: [...anim.frames[sel]], palette: [...anim.palette] };
     setStatus('Frame copied.');
@@ -377,6 +408,7 @@ export function AnimationEditorScreen({ source, device, deviceSize, active, onBa
 
   // ── Save / upload ───────────────────────────────────────────────────────────
   const save = useCallback(async (): Promise<boolean> => {
+    Keyboard.dismiss();
     setBusy(true);
     try {
       const a = { ...animRef.current, updatedAt: Date.now() };
@@ -470,16 +502,63 @@ export function AnimationEditorScreen({ source, device, deviceSize, active, onBa
     );
   }), [frame, prevFrame, anim.palette, anim.width, cellSize, gap]);
 
+  // Icon size that fits the 8 tool buttons (+ separator) on one row of the panel.
+  const toolGap = 4;
+  const panelW = (wide ? 360 : win.width) - 20;
+  const bs = Math.max(30, Math.min(44, Math.floor((panelW - 6 - 8 * toolGap) / 8)));
+  const frameOp = (op: FrameOp) => commitFrame((f, a) => {
+    const { width: w, height: h } = a;
+    switch (op) {
+      case 'flipH': return ops.flipH(f, w, h);
+      case 'flipV': return ops.flipV(f, w, h);
+      case 'left': return ops.shift(f, w, h, -1, 0);
+      case 'right': return ops.shift(f, w, h, 1, 0);
+      case 'up': return ops.shift(f, w, h, 0, -1);
+      case 'down': return ops.shift(f, w, h, 0, 1);
+      case 'clear': return ops.blankFrame(w, h);
+      default: return f;
+    }
+  });
+
   const toolsRow = (
-    <View style={styles.toolRow}>
+    <View style={[styles.toolRow, { gap: toolGap, flexWrap: 'nowrap' }]}>
       {TOOLS.map(t => (
-        <Btn key={t.key} small label={t.label} active={tool === t.key} onPress={() => setTool(t.key)} />
+        <IconBtn key={t.key} size={bs} icon={t.key} label={t.label} active={tool === t.key} onPress={() => setTool(t.key)} />
       ))}
       <View style={styles.sep} />
-      <Btn small label="Undo" onPress={undo} disabled={!undoStack.current.length} />
-      <Btn small label="Redo" onPress={redo} disabled={!redoStack.current.length} />
-      <Btn small label="More…" onPress={() => setShowMenu(true)} />
+      <IconBtn size={bs} icon="undo" label="Undo" onPress={undo} disabled={!undoStack.current.length} />
+      <IconBtn size={bs} icon="redo" label="Redo" onPress={redo} disabled={!redoStack.current.length} />
     </View>
+  );
+
+  const movePane = (
+    <View style={styles.movePane}>
+      <View style={styles.dpad}>
+        <IconBtn size={bs} icon="up" label="Shift up (wraps)" onPress={() => frameOp('up')} />
+        <View style={styles.dpadRow}>
+          <IconBtn size={bs} icon="left" label="Shift left (wraps)" onPress={() => frameOp('left')} />
+          <View style={{ width: bs, height: bs }} />
+          <IconBtn size={bs} icon="right" label="Shift right (wraps)" onPress={() => frameOp('right')} />
+        </View>
+        <IconBtn size={bs} icon="down" label="Shift down (wraps)" onPress={() => frameOp('down')} />
+      </View>
+      <View style={[styles.opsGrid, { width: bs * 3 + 16 }]}>
+        <IconBtn size={bs} icon="flipH" label="Flip horizontal" onPress={() => frameOp('flipH')} />
+        <IconBtn size={bs} icon="flipV" label="Flip vertical" onPress={() => frameOp('flipV')} />
+        <IconBtn size={bs} icon="clear" label="Clear frame" danger onPress={() => frameOp('clear')} />
+        <IconBtn size={bs} icon="copy" label="Copy frame" onPress={copyFrame} />
+        <IconBtn size={bs} icon="paste" label="Paste into frame" onPress={pasteFrame} disabled={!clipboard} />
+        <IconBtn size={bs} icon="onion" label={onion ? 'Onion skin: on' : 'Onion skin: off'} active={onion} onPress={() => setOnion(o => !o)} />
+        <IconBtn size={bs} icon="shrink" label="Shrink image" onPress={() => commitFrame((f, a) => ops.resizeContent(f, a.width, a.height, -1))} />
+        <IconBtn size={bs} icon="expand" label="Expand image" onPress={() => commitFrame((f, a) => ops.resizeContent(f, a.width, a.height, 1))} />
+      </View>
+    </View>
+  );
+
+  const effectsPane = (
+    <ScrollView style={!wide && { maxHeight: TRAY_H - 20 }} nestedScrollEnabled>
+      <EffectsGrid columns={win.width >= 560 && !wide ? 8 : 5} onPick={k => { setFxKind(k); setShowFx(true); }} />
+    </ScrollView>
   );
 
   const paletteRow = (
@@ -502,9 +581,6 @@ export function AnimationEditorScreen({ source, device, deviceSize, active, onBa
 
   const framesStrip = (
     <View>
-      <Text style={styles.label}>
-        Frame {sel + 1}/{anim.frames.length} · {anim.width}×{anim.height} · {DIRECTIONS[anim.animationDirection ?? 0]}
-      </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.strip}>
         {anim.frames.map((f, i) => (
           <TouchableOpacity key={i} onPress={() => setSel(i)} style={[styles.thumb, i === sel && styles.thumbActive]}>
@@ -516,13 +592,36 @@ export function AnimationEditorScreen({ source, device, deviceSize, active, onBa
           <Text style={styles.thumbAddText}>+</Text>
         </TouchableOpacity>
       </ScrollView>
-      <View style={styles.toolRow}>
-        <Btn small label="+ New" onPress={addFrame} />
-        <Btn small label="Dup" onPress={dupFrame} />
-        <Btn small label="◀" onPress={() => moveFrame(-1)} disabled={sel === 0} />
-        <Btn small label="▶" onPress={() => moveFrame(1)} disabled={sel >= anim.frames.length - 1} />
-        <Btn small label={`⏱ ${anim.durations[sel] ?? 500}ms`} onPress={() => setShowDuration(true)} />
-        <Btn small danger label="Del" onPress={delFrame} />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.frameBtns}>
+        <IconBtn size={bs} icon="add" label="New frame" onPress={addFrame} />
+        <IconBtn size={bs} icon="dup" label="Duplicate frame" onPress={dupFrame} />
+        <IconBtn size={bs} icon="prev" label="Move frame earlier" onPress={() => moveFrame(-1)} disabled={sel === 0} />
+        <IconBtn size={bs} icon="next" label="Move frame later" onPress={() => moveFrame(1)} disabled={sel >= anim.frames.length - 1} />
+        <Btn small label={`⏱ ${anim.durations[sel] ?? 500}`} onPress={() => setShowDuration(true)} style={{ height: bs }} />
+        <Btn
+          small
+          label={DIRECTIONS[anim.animationDirection ?? 0]}
+          onPress={() => commit(a => ({ ...a, animationDirection: ((a.animationDirection ?? 0) + 1) % DIRECTIONS.length }))}
+          style={{ height: bs }}
+        />
+        <IconBtn size={bs} icon="del" label="Delete frame" danger onPress={delFrame} />
+      </ScrollView>
+    </View>
+  );
+
+  const tray = (
+    <View style={styles.tray}>
+      <View style={styles.tabs}>
+        {TABS.map(t => (
+          <TouchableOpacity key={t.key} onPress={() => setTab(t.key)} style={[styles.tab, tab === t.key && styles.tabOn]}>
+            <Image source={{ uri: iconUri(t.icon) }} style={styles.tabIcon} fadeDuration={0} />
+            <Text style={[styles.tabText, tab === t.key && styles.tabTextOn]}>{t.label}</Text>
+          </TouchableOpacity>
+        ))}
+        <Text style={styles.counter}>{sel + 1}/{anim.frames.length}</Text>
+      </View>
+      <View style={[styles.trayBody, !wide && { height: TRAY_H }]}>
+        {tab === 'frames' ? framesStrip : tab === 'move' ? movePane : effectsPane}
       </View>
     </View>
   );
@@ -533,19 +632,20 @@ export function AnimationEditorScreen({ source, device, deviceSize, active, onBa
     <View style={styles.root}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={requestBack} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
+        <TouchableOpacity onPress={requestBack} style={styles.backBtn} accessibilityLabel="Back">
+          <Image source={{ uri: iconUri('back') }} style={{ width: 22, height: 22 }} fadeDuration={0} />
         </TouchableOpacity>
         <TextInput
           style={styles.nameInput}
           value={anim.name}
+          returnKeyType="done"
           onChangeText={name => setAnim({ ...animRef.current, name })}
           placeholder="Animation name"
           placeholderTextColor="#555"
         />
-        <Btn small label={narrow ? '▶' : '▶ Play'} onPress={() => setShowPreview(true)} />
-        <Btn small label={dirty ? 'Save •' : 'Save'} onPress={save} disabled={busy} primary={dirty} />
-        <Btn small label={busy ? '…' : narrow ? '⇪' : '⇪ Upload'} onPress={doUpload} disabled={busy} primary />
+        <IconBtn size={bs} icon="play" label="Preview" onPress={() => setShowPreview(true)} />
+        <IconBtn size={bs} icon="save" label={dirty ? 'Save (unsaved changes)' : 'Save'} onPress={save} disabled={busy} primary={dirty} />
+        <IconBtn size={bs} icon="upload" label="Upload to backpack" onPress={doUpload} disabled={busy} />
       </View>
       <View style={[styles.body, wide && styles.bodyWide]}>
         {!wide && <View style={styles.panelTop}>{toolsRow}{paletteRow}</View>}
@@ -566,10 +666,10 @@ export function AnimationEditorScreen({ source, device, deviceSize, active, onBa
           <ScrollView style={styles.side} contentContainerStyle={styles.sideContent}>
             {toolsRow}
             {paletteRow}
-            {framesStrip}
+            {tray}
           </ScrollView>
         ) : (
-          <View style={styles.panelBottom}>{framesStrip}</View>
+          <View style={styles.panelBottom}>{tray}</View>
         )}
       </View>
 
@@ -603,28 +703,16 @@ export function AnimationEditorScreen({ source, device, deviceSize, active, onBa
         }}
       />
 
-      <FrameMenu
-        visible={showMenu}
-        onClose={() => setShowMenu(false)}
-        onion={onion}
-        direction={anim.animationDirection ?? 0}
-        onToggleOnion={() => setOnion(o => !o)}
-        onCopy={copyFrame}
-        onPaste={clipboard ? pasteFrame : undefined}
-        onDirection={d => commit(a => ({ ...a, animationDirection: d }))}
-        onOp={op => commitFrame((f, a) => {
-          const { width: w, height: h } = a;
-          switch (op) {
-            case 'flipH': return ops.flipH(f, w, h);
-            case 'flipV': return ops.flipV(f, w, h);
-            case 'left': return ops.shift(f, w, h, -1, 0);
-            case 'right': return ops.shift(f, w, h, 1, 0);
-            case 'up': return ops.shift(f, w, h, 0, -1);
-            case 'down': return ops.shift(f, w, h, 0, 1);
-            case 'clear': return ops.blankFrame(w, h);
-            default: return f;
-          }
-        })}
+      <EffectsSheet
+        visible={showFx}
+        initialKind={fxKind}
+        base={frame}
+        width={anim.width}
+        height={anim.height}
+        palette={anim.palette}
+        color={color}
+        onClose={() => setShowFx(false)}
+        onApply={(added, ms, pal) => { insertFrames(added, ms, pal); setShowFx(false); }}
       />
 
       {showPreview && <PreviewModal anim={anim} onClose={() => setShowPreview(false)} />}
@@ -671,60 +759,7 @@ function DurationModal({ visible, value, onClose, onApply }: {
   );
 }
 
-// ── Frame tools menu ───────────────────────────────────────────────────────────
-
 type FrameOp = 'flipH' | 'flipV' | 'left' | 'right' | 'up' | 'down' | 'clear';
-
-function FrameMenu({ visible, onClose, onion, direction, onToggleOnion, onCopy, onPaste, onDirection, onOp }: {
-  visible: boolean;
-  onClose: () => void;
-  onion: boolean;
-  direction: number;
-  onToggleOnion: () => void;
-  onCopy: () => void;
-  onPaste?: () => void;
-  onDirection: (d: number) => void;
-  onOp: (op: FrameOp) => void;
-}) {
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={modal.overlay}>
-        <View style={modal.box}>
-          <Text style={modal.title}>Frame tools</Text>
-          <View style={modal.wrap}>
-            <Btn small label="⇋ Flip H" onPress={() => onOp('flipH')} />
-            <Btn small label="⇵ Flip V" onPress={() => onOp('flipV')} />
-            <Btn small label="Clear frame" danger onPress={() => onOp('clear')} />
-          </View>
-          <View style={modal.wrap}>
-            <Btn small label="Copy frame" onPress={onCopy} />
-            <Btn small label="Paste into frame" onPress={() => onPaste?.()} disabled={!onPaste} />
-          </View>
-          <Text style={modal.sub}>Shift (wraps around)</Text>
-          <View style={modal.wrap}>
-            <Btn small label="←" onPress={() => onOp('left')} />
-            <Btn small label="→" onPress={() => onOp('right')} />
-            <Btn small label="↑" onPress={() => onOp('up')} />
-            <Btn small label="↓" onPress={() => onOp('down')} />
-          </View>
-          <Text style={modal.sub}>Playback</Text>
-          <View style={modal.wrap}>
-            {DIRECTIONS.map((d, i) => (
-              <Btn key={d} small label={d} active={direction === i} onPress={() => onDirection(i)} />
-            ))}
-          </View>
-          <Text style={modal.sub}>View</Text>
-          <View style={modal.wrap}>
-            <Btn small label={onion ? 'Onion skin: on' : 'Onion skin: off'} active={onion} onPress={onToggleOnion} />
-          </View>
-          <View style={modal.btns}>
-            <Btn label="Done" primary onPress={onClose} />
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-}
 
 // ── Animation preview ──────────────────────────────────────────────────────────
 
@@ -822,6 +857,20 @@ const styles = StyleSheet.create({
   thumbNum:      { color: C.dim, fontSize: 10, marginTop: 1 },
   thumbAdd:      { width: 50, height: 72, justifyContent: 'center', borderStyle: 'dashed', borderColor: '#555' },
   thumbAddText:  { color: C.dim, fontSize: 24 },
+  frameBtns:     { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  tray:          { backgroundColor: C.panel, borderRadius: 12, borderWidth: 1, borderColor: '#262626', overflow: 'hidden' },
+  tabs:          { flexDirection: 'row', borderBottomWidth: 1, borderColor: '#262626' },
+  tab:           { flex: 1, height: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderBottomWidth: 2, borderColor: 'transparent' },
+  tabOn:         { borderColor: C.accent },
+  tabIcon:       { width: 16, height: 16 },
+  tabText:       { color: C.dim, fontSize: 13, fontWeight: '700' },
+  tabTextOn:     { color: C.accent },
+  counter:       { color: C.dim, fontSize: 12, alignSelf: 'center', paddingHorizontal: 10 },
+  trayBody:      { padding: 10 },
+  movePane:      { flexDirection: 'row', gap: 20, alignItems: 'center', justifyContent: 'center' },
+  dpad:          { alignItems: 'center', gap: 4 },
+  dpadRow:       { flexDirection: 'row', gap: 4 },
+  opsGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });
 
 const modal = StyleSheet.create({

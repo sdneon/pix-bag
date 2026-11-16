@@ -6,7 +6,7 @@ import type { Backpack } from '../ble/Backpack';
 import { uploadAnimation } from '../ble/upload';
 import { AnimationStore, SavedAnimation } from '../storage/AnimationStore';
 import { BUILTIN_ANIMATIONS } from '../data/builtinAnimations';
-import { shareBackup, importWithAlerts } from '../storage/BackupService';
+import { saveBackupToFile, shareBackup, importWithAlerts } from '../storage/BackupService';
 import { PixelImage } from '../ui/PixelImage';
 import { Btn, C } from '../ui/Btn';
 import { ActionSheet, SheetAction } from '../ui/ActionSheet';
@@ -32,6 +32,12 @@ export function GalleryScreen({ device, linkUp, active, onOpen, onNew, onDevice 
   const win = useWindowDimensions();
   const cols = Math.max(2, Math.floor((win.width - 24) / (CARD_W + 12)));
   const cardW = Math.floor((win.width - 24 - (cols - 1) * 12) / cols);
+
+  useEffect(() => {
+    if (!status || busy) return;
+    const t = setTimeout(() => setStatus(''), 3000);
+    return () => clearTimeout(t);
+  }, [status, busy]);
 
   const reload = useCallback(() => {
     AnimationStore.list().then(all =>
@@ -126,7 +132,14 @@ export function GalleryScreen({ device, linkUp, active, onOpen, onNew, onDevice 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.sectionRow}>
           <Text style={styles.section}>My animations</Text>
-          <Btn small label="⬆ Backup" onPress={() => shareBackup().catch(e => Alert.alert('Backup failed', e.message))} />
+          <Btn
+            small
+            label="Save"
+            onPress={() => saveBackupToFile()
+              .then(saved => { if (saved) setStatus('Backup saved.'); })
+              .catch(e => Alert.alert('Save failed', e.message))}
+          />
+          <Btn small label="Share" onPress={() => shareBackup().catch(e => Alert.alert('Share failed', e.message))} />
           <Btn small label="⬇ Restore" onPress={() => Alert.alert('Restore', 'Merge with existing or replace all?', [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Merge', onPress: () => importWithAlerts('merge').then(reload) },

@@ -1,4 +1,4 @@
-import { Alert } from 'react-native';
+import { Alert, NativeModules } from 'react-native';
 import RNFS from 'react-native-fs';
 import RNShare from 'react-native-share';
 import DocumentPicker from 'react-native-document-picker';
@@ -106,6 +106,14 @@ export async function shareBackup(): Promise<void> {
     filename: backupFilename(),
     failOnCancel: false,
   });
+}
+
+// Opens the system "Save as" dialog (Downloads, My files, Drive…) and writes the backup there.
+// Resolves false if the user cancelled.
+export async function saveBackupToFile(): Promise<boolean> {
+  const json = await buildBackupJson();
+  const uri: string | null = await NativeModules.SaveFile.saveText(backupFilename(), 'application/json', json);
+  return !!uri;
 }
 
 // ── Import ─────────────────────────────────────────────────────────────────────

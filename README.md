@@ -3,7 +3,7 @@
 An open-source Android app for the [**PIX: The Backpack**](https://www.kickstarter.com/projects/pixbackpack/pix-the-first-smart-animative-backpack) - the legacy Kickstarter backpack with a 16×20px colour LED display.
 Modded from [Raimond Brookman's PixelPackerOSS](https://github.com/RaimondB/PixelPackerOSS).
 
-Draw pixel animations, upload them to the backpack, and use the clock, scrolling text, bike signals and games, with no account or server needed.
+Draw pixel animations (or generate them with one-tap effects), upload them to the backpack, and use scrolling text, Bingo, the clock, bike signals and games, with no account or server needed.
 
 > **Disclaimer:** Pix Bag is an independent community project. It is not affiliated with, endorsed by, or supported by the original makers of the PIX backpack or their app.
 
@@ -15,24 +15,26 @@ The company behind the PIX backpack is gone, and so are its servers. The origina
 
 - **Gallery home screen**: your saved animations plus the built-in ones, with thumbnails. Tap to edit (built-ins open as an editable copy). The `⋯` menu on each item offers edit / preview / upload / duplicate / delete.
 - **Animation editor**
-  - Tools: pen, erase, line, rectangle, flood fill, colour picker
-  - Undo / redo (100 steps)
+  - Pixel-art icon toolbar: pen, eraser, line, rectangle, fill, colour picker, undo / redo (100 steps). Long-press any icon to see its name
   - 16-slot palette. Long-press a swatch to edit it (HSV sliders, hex, quick swatches), `+` adds a slot
-  - Frame strip with live thumbnails: new, duplicate, move left/right, delete
-  - Frame duration per frame or for all frames (slider + presets)
-  - "More…" menu: flip horizontal/vertical, shift with wrap-around, clear, copy/paste frame (also between animations, colours are mapped), playback direction (Loop, Ping-pong, Play once, Ping-pong once), onion skin
+  - Tray under the canvas, so you always see what a tool does:
+    - **Frames**: live thumbnails, new, duplicate, move, delete, frame duration, playback direction
+    - **Move**: shift with wrap-around, flip, shrink / expand, clear, copy / paste frame (also between animations), onion skin
+    - **Effects**: 16 one-tap animation generators with live preview, inserted after the current frame: scrolling text, wave / flame, scroll image, slide in / out, bounce in, grow, shrink, blink, colour cycle, shake, wipe, dissolve, sparkle, heartbeat, rainbow swirl / spiral. Each button replays its own effect as a demo
   - Preview player, save, upload to the backpack (checks frame count and size)
   - Asks before leaving with unsaved changes
   - Layouts for phones, unfolded foldables (side panel) and narrow cover screens
 - **Device page** (tap the chip at the top right)
   - Scan for backpacks, or one tap to reconnect to the last one
   - Brightness slider and presets
-  - Display modes: Animation, Clock, Scrolling, Stopwatch, Countdown, Bike, Pix Blocks, Pixel Breaker, Crawler, Off
-  - Clock (sets the backpack's time), Countdown timer, Bike turn/brake signals, Pixel Breaker game pad
-  - Widgets: Scrolling Text (colour + speed), Roll the Dice
+  - Display: Animation, Off
+  - Widgets: Clock, Countdown, Stopwatch, Scrolling Text, Roll the Dice, Bingo, Bike signals
+  - Games: Pix Blocks, Crawler, Pixel Breaker, each with a game pad
+  - Items your backpack's firmware is too old for are greyed out (see [firmware note](docs/user-guide.md#device-page--modes))
   - Restart, demo mode toggle, diagnostics test upload
   - Auto-reconnect when the link drops. The chip turns red if the link is lost
-- **Backup / Restore** of all your animations as a JSON file (merge or replace)
+- **Bingo**: 75- or 90-ball caller with tally board; the backpack shows the column letter, the number, recent numbers and a sparkle for each new draw
+- **Save / Share / Restore** all your animations as a JSON file: save to any folder (Downloads, Drive, …), share to another app, restore by merging or replacing
 
 See the **[User guide](docs/user-guide.md)** for a walkthrough.
 
@@ -113,7 +115,7 @@ pix-connector/            Pix Bag app (React Native 0.74, Android)
   src/
     ble/                  BLE service, device protocol, upload, font bitmaps
     screens/              Gallery, editor, device page, clock, bike, games, ...
-    editor/               Pixel operations (fill, lines, flips, shifts)
+    editor/               Pixel operations (fill, lines, flips, shifts) and effect generators
     storage/              Saved animations (AsyncStorage) and backup/restore
     ui/                   Shared widgets (colour editor, slider, pixel images)
     data/                 Built-in animations
@@ -130,6 +132,9 @@ setup.sh                  Dev environment bootstrap (Ubuntu / WSL2)
 ## Credits
 
 Pix Bag is a fork of [**PixelPackerOSS**](https://github.com/RaimondB/PixelPackerOSS), the open-source re-implementation of the PIX backpack BLE protocol, and is released under the same license.
+
+Claude Code for do all the heavy lifting 🤗
+As usual, use at your own risk. Am just happy to get my Pix Backpack lit up again 😆
 
 ## License
 

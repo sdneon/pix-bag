@@ -12,14 +12,12 @@ import {
 import type { Backpack } from '../ble/Backpack';
 import BleService, { BLE_EVENTS } from '../ble/BleService';
 import { toUint16Bytes } from '../ble/utils';
-import {
-  MODE_NONE, MODE_ANIMATION, MODE_SCROLLING,
-  MODE_CLOCK, MODE_STOPWATCH, MODE_COUNTDOWN,
-  MODE_BIKE, MODE_PIX_BLOCKS, MODE_PIXEL_BREAKER, MODE_CRAWLER,
-} from '../ble/constants';
+import { MODE_NONE, MODE_ANIMATION } from '../ble/constants';
+import { GAMES, GameKey, MIN_FIRMWARE, firmwareAtLeast } from '../ble/modes';
 
-
-export type NavigateTo = 'bike' | 'pixel-breaker' | 'animation-editor' | 'scrolling-text' | 'dice' | 'countdown' | 'clock';
+export type NavigateTo =
+  | 'bike' | 'animation-editor' | 'scrolling-text' | 'dice' | 'countdown' | 'clock' | 'stopwatch' | 'bingo'
+  | GameKey;
 
 interface Props {
   device: Backpack;
@@ -36,21 +34,21 @@ interface DeviceInfo {
   hardware: string;
 }
 
-// Modes that open a dedicated control screen instead of just setting the mode
-const INTERACTIVE_MODES = new Set([MODE_BIKE, MODE_PIXEL_BREAKER, MODE_COUNTDOWN, MODE_CLOCK]);
-
+// Only modes that work with no extra settings; everything else has its own screen.
 const MODES = [
-  { label: 'Animation',       value: MODE_ANIMATION },
-  { label: 'Clock ▶',         value: MODE_CLOCK },
-  { label: 'Scrolling',       value: MODE_SCROLLING },
-  { label: 'Stopwatch',       value: MODE_STOPWATCH },
-  { label: 'Countdown ▶',     value: MODE_COUNTDOWN },
-  { label: 'Bike ▶',          value: MODE_BIKE },
-  { label: 'Pix Blocks',      value: MODE_PIX_BLOCKS },
-  { label: 'Pixel Breaker ▶', value: MODE_PIXEL_BREAKER },
-  { label: 'Crawler',         value: MODE_CRAWLER },
-  { label: 'Off',             value: MODE_NONE },
+  { label: 'Animation', value: MODE_ANIMATION },
+  { label: 'Off',       value: MODE_NONE },
 ] as const;
+
+const WIDGETS: { label: string; to: NavigateTo; min: string }[] = [
+  { label: 'Clock',            to: 'clock',          min: MIN_FIRMWARE.clock },
+  { label: 'Countdown',        to: 'countdown',      min: MIN_FIRMWARE.countdown },
+  { label: 'Stopwatch',        to: 'stopwatch',      min: MIN_FIRMWARE.stopwatch },
+  { label: 'Scrolling Text',   to: 'scrolling-text', min: '0' },
+  { label: '🎲 Roll the Dice', to: 'dice',           min: MIN_FIRMWARE.dice },
+  { label: 'Bingo',            to: 'bingo',          min: '0' },
+  { label: 'Bike',             to: 'bike',           min: MIN_FIRMWARE.bike },
+];
 
 export function ControlScreen({ device, onBack, onDisconnect, onNavigate }: Props) {
   const [info, setInfo] = useState<DeviceInfo | null>(null);
@@ -168,15 +166,11 @@ export function ControlScreen({ device, onBack, onDisconnect, onNavigate }: Prop
   }, [brightness, device, run]);
 
   const handleMode = useCallback(async (mode: number, label: string) => {
-    if (mode === MODE_BIKE) { onNavigate('bike'); return; }
-    if (mode === MODE_PIXEL_BREAKER) { onNavigate('pixel-breaker'); return; }
-    if (mode === MODE_COUNTDOWN) { onNavigate('countdown'); return; }
-    if (mode === MODE_CLOCK) { onNavigate('clock'); return; }
     await run(`Mode → ${label}`, async () => {
       await device.setRenderMode(mode);
       setActiveMode(mode);
     });
-  }, [device, onNavigate, run]);
+  }, [device, run]);
 
   const toggleDemoMode = useCallback(async () => {
     const next = !demoMode;
@@ -257,8 +251,8 @@ export function ControlScreen({ device, onBack, onDisconnect, onNavigate }: Prop
         <Btn label="Max" onPress={() => run('Brightness → 100%', async () => { await device.setBrightness(100); setBrightness(100); })} disabled={busy || !connected} />
       </View>
 
-      {/* Display Modes */}
-      <SectionHeader label="Display Mode" />
+      {/* Display */}
+      <SectionHeader label="Display" />
       <View style={styles.modeGrid}>
         {MODES.map(m => (
           <Btn
@@ -266,26 +260,40 @@ export function ControlScreen({ device, onBack, onDisconnect, onNavigate }: Prop
             label={m.label}
             onPress={() => handleMode(m.value, m.label)}
             disabled={busy || !connected}
-            active={activeMode === m.value && !INTERACTIVE_MODES.has(m.value)}
-            highlight={INTERACTIVE_MODES.has(m.value)}
+            active={activeMode === m.value}
           />
         ))}
       </View>
 
-      {/* Widgets */}
+      {/* Widgets & games each open their own screen; greyed out if the firmware is too old. */}
       <SectionHeader label="Widgets" />
-      <View style={styles.row}>
-        <Btn
-          label="Scrolling Text ▶"
-          onPress={() => onNavigate('scrolling-text')}
-          highlight
-        />
-        <Btn
-          label="🎲 Roll the Dice ▶"
-          onPress={() => onNavigate('dice')}
-          highlight
-        />
+      <View style={styles.modeGrid}>
+        {WIDGETS.map(w => (
+          <Btn
+            key={w.to}
+            label={`${w.label} ▶`}
+            onPress={() => onNavigate(w.to)}
+            disabled={!connected || !firmwareAtLeast(info?.firmware, w.min)}
+            highlight
+          />
+        ))}
       </View>
+      <SectionHeader label="Games" />
+      <View style={styles.modeGrid}>
+        {(Object.keys(GAMES) as GameKey[]).map(k => (
+          <Btn
+            key={k}
+            label={`${GAMES[k].label} ▶`}
+            onPress={() => onNavigate(k)}
+            disabled={!connected || !firmwareAtLeast(info?.firmware, GAMES[k].minFirmware)}
+            highlight
+          />
+        ))}
+      </View>
+      {info && [...WIDGETS.map(w => w.min), ...Object.values(GAMES).map(g => g.minFirmware)]
+        .some(m => !firmwareAtLeast(info.firmware, m)) && (
+        <Text style={styles.meta}>Greyed-out items need newer backpack firmware than FW {info.firmware}.</Text>
+      )}
       {busy && <ActivityIndicator color="#00d4ff" style={styles.spinner} />}
 
       {/* Device */}

@@ -74,6 +74,31 @@ export function rectCells(x0: number, y0: number, x1: number, y1: number): [numb
   return out;
 }
 
+// Scale the drawing about its own centre so its longer side grows (+1) or shrinks (-1) by 2 pixels.
+export function resizeContent(f: Frame, w: number, h: number, delta: 1 | -1): Frame {
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  f.forEach((c, i) => {
+    if (!c) return;
+    const x = i % w, y = (i / w) | 0;
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+  });
+  if (x1 < 0) return f;
+  const size = Math.max(x1 - x0 + 1, y1 - y0 + 1);
+  const s = (size + 2 * delta) / size;
+  if (s <= 0) return f;
+  const cx = (x0 + x1 + 1) / 2, cy = (y0 + y1 + 1) / 2;
+  const out = blankFrame(w, h);
+  for (let y = 0; y < h; y++) {
+    const sy = Math.floor(cy + (y + 0.5 - cy) / s);
+    if (sy < 0 || sy >= h) continue;
+    for (let x = 0; x < w; x++) {
+      const sx = Math.floor(cx + (x + 0.5 - cx) / s);
+      if (sx >= 0 && sx < w) out[y * w + x] = f[sy * w + sx];
+    }
+  }
+  return out;
+}
+
 // Replace every pixel of one palette index with another.
 export function replaceColor(f: Frame, from: number, to: number): Frame {
   return f.map(c => (c === from ? to : c));
