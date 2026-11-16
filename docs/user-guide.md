@@ -9,7 +9,7 @@ Pix Bag lets you draw pixel animations on your phone and send them to your PIX L
 3. Tap **Scan for Backpacks** and allow the Bluetooth permission if asked. Scanning runs for about 10 seconds.
 4. Tap your backpack in the list.
 
-![Scanning for backpacks](images/device-scan.png)
+<img src="images/device-scan.png" alt="Scanning for backpacks" width="242">
 
 Next time, the Device page shows **Reconnect to &lt;name&gt;** so you can connect with one tap, without scanning.
 
@@ -19,17 +19,17 @@ The chip shows the connection state: grey = not connected, green = connected, re
 
 The home screen lists **My animations** and the **Built-in** animations.
 
-![Gallery](images/gallery.png)
+<img src="images/gallery.png" alt="Gallery" width="242">
 
 - Tap **+ New animation** to start a blank one.
 - Tap an animation to edit it. Built-ins open as a copy, so the original stays as it is.
 - Tap `⋯` (or long-press the card) for more: **Edit**, **Preview**, **Upload to backpack**, and for your own animations **Duplicate** and **Delete**.
 
-![Item menu](images/item-menu.png)
+<img src="images/item-menu.png" alt="Item menu" width="242">
 
 ## Editor tools
 
-![Editor](images/editor.png)
+<img src="images/editor.png" alt="Editor" width="242">
 
 The top bar has the name (tap to rename), **▶ Play**, **Save** and **⇪ Upload**. **Save •** means there are unsaved changes.
 
@@ -54,7 +54,7 @@ Each animation has up to 16 colours.
 - Long-press a swatch to change it: hue, saturation and brightness sliders, a hex field, and quick colours. Tap **OK** to apply.
 - Tap **+** to add a slot (shown while there are fewer than 16).
 
-![Colour editor](images/color-editor.png)
+<img src="images/color-editor.png" alt="Colour editor" width="242">
 
 The first slot is what Erase paints, and blank pixels use it too. Keep it black if you want those LEDs off.
 
@@ -68,7 +68,7 @@ The strip under the canvas shows every frame with a live thumbnail. Tap one to e
 - **Del** deletes the current frame. With only one frame left, it clears it instead.
 - **⏱ 500ms** sets how long the frame is shown.
 
-![Frame duration](images/duration.png)
+<img src="images/duration.png" alt="Frame duration" width="242">
 
 In the duration dialog, use the slider (20 to 3000 ms) or a preset, then tap **This frame** or **All frames**.
 
@@ -78,7 +78,7 @@ The label above the strip shows the frame number, the size and the playback dire
 
 **More…** opens the frame tools:
 
-![More menu](images/more-menu.png)
+<img src="images/more-menu.png" alt="More menu" width="242">
 
 - **Flip H / Flip V**: mirror the current frame.
 - **Clear frame**: blank the current frame.
@@ -93,7 +93,7 @@ Every change here can be undone.
 
 - **▶ Play** shows the animation with its timing and playback direction. Tap **Pause** / **Play**, or **Restart** after a "once" animation ends.
 
-![Preview](images/preview.png)
+<img src="images/preview.png" alt="Preview" width="242">
 
 - **Save** stores the animation on your phone. If you leave with unsaved changes, Pix Bag asks whether to **Save** or **Discard**.
 - **⇪ Upload** sends the animation to the backpack and switches it to Animation mode. The backpack keeps it after power-off. If no backpack is connected, Pix Bag offers to connect first. You get a warning if the animation size doesn't match the backpack, and an error if it has more frames than the backpack can hold.
@@ -104,7 +104,7 @@ The editor stays open while you visit the Device page, so you can connect in the
 
 Tap the chip at the top right while connected.
 
-![Device page](images/device-connected.png)
+<img src="images/device-connected.png" alt="Device page" width="242"><br><sub>Illustration: your backpack's name, frame count and firmware version will differ.</sub>
 
 - **Header**: backpack name, display size, maximum frames and firmware version.
 - **Brightness**: drag the slider, use **−** / **+** (10% steps), or **Off**, **50%**, **Max**.

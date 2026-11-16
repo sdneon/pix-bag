@@ -12,4 +12,4 @@ Screenshots used by [`../user-guide.md`](../user-guide.md). Phone portrait, dark
 | `more-menu.png` | done | **More…** (Frame tools) after Copy frame. |
 | `duration.png` | done | `⏱` Frame duration dialog. |
 | `preview.png` | done | ▶ preview player mid-playback. |
-| `device-connected.png` | needed | Device page while connected to a real backpack: brightness slider and Display Mode grid. Needs a phone + backpack. |
+| `device-connected.png` | illustration | Device page while connected (mock-up from the screen's code; replace with a real phone screenshot when available). |
